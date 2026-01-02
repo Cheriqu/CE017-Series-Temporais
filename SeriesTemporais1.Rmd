@@ -1,0 +1,280 @@
+---
+lang: "pt-br"
+output:
+  pdf_document:
+    extra_dependencies: ["float"]
+    latex_engine: xelatex
+header-includes:
+   - \usepackage{cancel}
+   - \usepackage{fancyhdr}
+   - \pagestyle{fancy}
+   - \fancyhf{}  
+   - \renewcommand{\headrulewidth}{0pt}  
+   - \fancyfoot[L]{\includegraphics[width=2cm]{logo.png}}
+   - \fancyfoot[C]{}
+   - \fancyfoot[R]{Página \thepage}
+title: "CE017 - Análise de Séries Temporais"
+subtitle: "Trabalho 1 - Luiz Henrique Barretta Francisco - GRR20213026"
+---
+
+```{r echo=TRUE, warning=FALSE, results=FALSE, message=FALSE}
+install.packages("astsa")
+library(astsa)
+```
+
+17- a) Simule uma série de n=500 observações de um processo ruído branco Gaussiano como no Exemplo 8 e calcule a função ACF mostral $\hat{\rho}(h)$, para até o lag 20. Compare a ACF amostral que você obteve com o ACF real $\rho(h)$.
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+set.seed(2024)
+w = rnorm(500,0,1) # 500 N(0,1) variáveis
+par(mfrow=c(1,1),mar=c(4,3,1,1),mgp=c(1.6,.6,0))
+plot.ts(w, xlab="Tempo", main="Ruído branco")
+grid()
+
+acf(w)
+```
+
+A ACF real de um ruído branco Gaussiano é $\rho(h) = 1$ se $h=0$ e $\rho(h)=0$ para qualquer $h\geq1$. Esse foi exatamente o resultado obtido na ACF amostral mostrada no gráfico acima, dado que a autocorrelação da própria observação, quando $h=0$, é $\hat{\rho}(h)=1$ e $\hat{\rho}(h)=0$ para todos os outros valores, pois estes ficaram dentro das bandas de confiança, e portanto devem ser considerados como 0.
+
+
+b) Repita a parte (a) usando apenas n=50. Como mudar n afeta os resultados?
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+set.seed(2024)
+w = rnorm(50,0,1) # 50 N(0,1) variáveis
+par(mfrow=c(1,1),mar=c(4,3,1,1),mgp=c(1.6,.6,0))
+plot.ts(w, xlab="Tempo", main="Ruído branco")
+grid()
+
+acf(w)
+
+```
+
+Com menos observações a ACF amostral tende a ser mais ruidosa e menos precisa quando comparada à ACF real. Como mostrado no gráfico acima, que nitidamente tem bandas de confiança mais largas do que no exemplo com mais observações, nos dando menos confiança de que esses valores são zero, por mais que no exemplo da _seed_ gerada ainda todos o sejam.
+
+19- Embora o modelo no Exercício 2 (a) não seja estacionário, a função ACF amostral pode ser informativa. Para os dados gerados nesse problema, calcule e mostre a ACF amostral e, em seguida, comente.
+
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+set.seed(2024)
+w = rnorm(100, 0, 1)
+x = filter(w, filter = c(1, -0.9), method = "recursive")[-(1:50)]  
+v = filter(x, rep(1/4, 4), sides = 1)  
+plot.ts(x, xlab = "Tempo", main = "Autoregressão com filtro médio móvel")
+lines(v, lty = 2, col = "red")
+grid()
+acf(x)
+```
+
+A ACF amostral mostra uma autocorrelação significativa nos primeiros valores e alternância a cada 3 ou 4 unidades de lag, o que corresponde com o modelo autorregressivo proposto. 
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+set.seed(2024)
+t = 1:100
+x = cos(2 * pi * t / 4)
+v = filter(x, rep(1/4, 4), sides = 1)
+
+plot.ts(x, xlab = "Tempo", main = "Cosseno com filtro médio móvel")
+lines(v, lty = 2, col = "red")
+grid()
+acf(x)
+```
+
+A ACF amostral apresenta um padrão cíclico e alternado a cada 4 valores, exatamente por ter sido construída da função periódica $cos(2\pi t/4)$.
+
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+x = x + w
+v = filter(x, rep(1/4, 4), sides = 1)
+plot.ts(x, xlab = "Tempo", main = "Cosenoidal com ruído e filtro médio móvel")
+lines(v, lty = 2, col = "red")
+grid()
+acf(x)
+
+```
+
+Ao adicionarmos um ruído branco Gaussiano na função periódica $cos(2\pi t/4)$ a ACF amostral ainda apresenta seu padrão cíclico e alternado porém muito menos siginificante dado a adição do ruído branco, já que ele tende a diminuir a autocorrelação.
+
+1- Um Modelo Estrutural: Para os dados da Johnson & Johnson $y_t$, mostrados na figura considerando $x_t=log(y_t)$.
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+par(mar=c(4,4,3,1))
+plot(log(jj), type="o", xlab="Tempo", ylab="Lucro trimestral por ação", pch=19, 
+     main="Johnson & Johnson ganhos trimestrais por ação\n 84 trimestres, 1960-I a 1980-IV")
+grid()
+```
+
+Neste problema, vamos ajustar um tipo especial de modelo estrutural, $X_t=T_t+S_t+W_t$, em que $T_t$ é um componente de tendência, $S_t$ um componente sazonal e $W_t$  o ruído. No nosso caso, o tempo t está nos trimestres 1960.00, 1960.25, então uma unidade de tempo é um ano.
+
+a) Ajuste o modelo de regressão
+
+$$ x_t = \beta t + \alpha_1 Q_1(t)+\alpha_2 Q_2(t)+
+\alpha_3 Q_3(t)+\alpha_4 Q_4(t) + W(t)$$
+
+onde $Q_i(t) = 1$ se o tempo $t$ corresponde ao trimestre $i=1,2,3,4$ e zero caso contrário. Os $Q_i(t)$ s são chamados de variáveis indicadoras. Vamos assumir por enquanto que $W_t$ é uma sequência de ruído branco gaussiano.
+
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+trimestre <- factor(cycle(jj))
+summary(fit.jj <- lm(log(jj) ~ time(log(jj)) + trimestre + 0))
+```
+
+b) Se o modelo estiver correto, qual é o aumento médio anual estimado do lucro por ação registrado?
+
+O modelo ajustou um crescimento anual de 0.1672 para o retorno da ação. Voltando para a escala do lucro por ação, temos $e^{0.1672}=1.182$, ou seja um crescimento de 18,2% anual.
+
+
+c) Se o modelo estiver correto, a taxa de lucro média registrada aumenta ou diminui do terceiro para o quarto trimestre? E, por qual porcentagem aumenta ou diminui?
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+t_q3 <- exp(coefficients(fit.jj)[4])
+t_q4 <- exp(coefficients(fit.jj)[5])
+(t_q4-t_q3)/t_q3*100
+```
+A taxa de lucro média diminui em torno de 23,5% do terceiro para o quarto trimestre.
+
+d) O que acontece se você incluir um termo de intercepto no modelo em (a)? Explique por que houve um problema.
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+summary(fit2.jj <- lm(log(jj) ~ time(log(jj)) + trimestre))
+```
+
+Agora no modelo ajustado, o com intercepto representa o lucro médio do primeiro trimestre, enquanto os outros coeficientes indicam a diferença desse lucro médio do trimeiro para o do primeiro trimestre. Portanto, o intercepto é equivalente ao valor estimado para trimestre1 no ajuste anterior.
+
+e) Represente graficamente os dados $X_t$ e sobreponha os valores ajustados, digamos $\hat{X}(t)$, no gráfico. Examine os resíduos $X_t - \hat{X}(t)$, e exponha suas conclusões. Parece que o modelo se ajusta bem aos dados, ou seja, os resíduos parecem um ruído branco?
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+ajustados <- data.frame(x=time(jj), y =fitted(fit.jj))
+residuos <- residuals(fit.jj)
+plot(log(jj), type="o", xlab="Tempo", ylab="Lucro trimestral por ação", pch=19, 
+     main="Johnson & Johnson ganhos trimestrais por ação\n 84 trimestres, 1960-I a 1980-IV")
+lines(ajustados, col="red")
+```
+
+O modelo aparentemente se ajusta bem aos dados tanto quanto a sua tendência quanto a seu comportamento sazonal dos resultados.
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+plot(fitted(fit.jj), residuos, 
+     xlab = "Valores Ajustados", 
+     ylab = "Resíduos", 
+     main = "Resíduos vs Valores Ajustados")
+abline(h = 0, col = "red", lty = 2)
+```
+
+O resíduo aparente se comporta como um ruído branco e, portanto, o modelo se sustenta como bem ajustado para essa série temporal.
+
+9- Considere as duas séries temporais de petróleo oil e gás gas, pacote astsa. A série de petróleo é em dólares por barril, enquanto a série de gás é em centavos por galão.
+
+a) Mostre os dados no mesmo gráfico. Você acredita que as séries são estacionárias? Explique sua resposta.
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+par(mar=c(4,4,3,1))
+plot(oil, type="o", xlab="Tempo", ylab="Preço", pch=19, cex=0.5, ylim=range(c(oil, gas)),
+     main="Preço do WTI FOB e da gasolina (2000-1 até 2010-25)")
+grid()
+lines(gas, type="o", pch=19, cex=0.5, col="steelblue")
+legend("topleft", legend=c("WTI FOB (Dólares por barril)", "Gasolina NY (Centavos por galão)"),
+       col=c("black", "steelblue"), pch=19, lty=1)
+```
+
+Ambas as séries não parecem ser estacionárias, dado a sua tendência de aumento de preço, o que indicaria uma média não constante, e a grande queda abrupta observada em ambas, que pode ser indicativo de grande variância nesse intervalo. Esse comportamento é o contrário de uma série estacionária.
+
+b) Em economia, muitas vezes é a variação percentual no preço, denominada taxa de crescimento ou retorno, em vez da mudança absoluta de preço, que é importante. Argumente que uma transformação da forma $Y_t = \nabla log(X_t)$ pode ser aplicada aos dados, onde $X_t$ é a série de preços do petróleo ou gás.
+
+Essa transformação de retorno pode ser aplicada nos dados pois mostra a variação relativa nos preços ao longo do tempo, que é uma medida melhor do que a variância absoulta, ainda mais quando comparando séries de preços de produtos diferentes.
+
+c) Transforme os dados conforme descrito na parte (b), mostre os dados no mesmo gráfico, observe os exemplos de ACFs dos dados transformados e comente.
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+r_oil <- diff(log(oil))
+r_gas <- diff(log(gas))
+
+par(mar=c(4,4,3,1))
+plot(r_oil, type="o", xlab="Tempo", ylab="Preço", pch=19, cex=0.5, ylim=range(c(r_oil, r_gas)),
+     main="Preço do WTI FOB e da gasolina (2000-1 até 2010-25)")
+grid()
+lines(r_gas, type="o", pch=19, cex=0.5, col="steelblue")
+legend("topleft", legend=c("WTI FOB (Dólares por barril)", "Gasolina NY (Centavos por galão)"),
+       col=c("black", "steelblue"), pch=19, lty=1)
+```
+
+Agora sim as séries aparentam serem estacionárias, pois mantém uma média constante ao redor de zero, além de uma variância também aparentemente constante. Vamos continuar a análise olhando a ACF amostral.
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+acf(r_oil)
+acf(r_gas)
+```
+
+A ACF amostral $\hat{\rho}(h)$ indica que a maior parte das autocorrelações está dentro do intervalo de confiança, exceto quando $h=0$. Isso sugere que ambas as séries de retorno parecem ser estacionárias, sem padrões de autocorrelação significativa para $h \geq 1$.
+
+d) Grafique o CCF dos dados transformados e comente. Os valores pequenos, mas significativos, quando o gás conduz o petróleo podem ser considerados como explicativos.
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+ccf(r_oil, r_gas)
+```
+
+A análise de correlação cruzada entre as séries temporais tem valores significativos para valores próximos de zero, o que nos leva a conclusão de que os preços semanais de uma série influencia a outra, principalmente na mesma semana. Como os valores significativos se estendem mais à direita, essa é uma evidência de que a série de preços no petróleo acaba por conduzir o preço do combustível até três semanas à frente.
+
+e) Exiba gráficos de dispersão da série de taxas de crescimento de petróleo e gás por até três semanas do prazo de entrega dos preços do petróleo; inclua um suavizador não paramétrico em cada gráfico e comente os resultados, por exemplo, existem outliers? As relações são lineares?
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+lag2.plot(r_oil, r_gas, 5, cex=0.6,pch=19)
+```
+Os gráficos acima mostram uma relação não linear para os instantes $t,t-1, t-3$. A correlação diminui à medida que o lag aumenta, sugerindo que a dependência entre as séries é mais forte no curto prazo e se dissipa rapidamente.
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+dates <- time(r_oil)
+outliers_oil <- which(abs(r_oil - mean(r_oil)) > 3 * sd(r_oil))
+outliers_gas <- which(abs(r_gas - mean(r_gas)) > 3 * sd(r_gas))
+outliers <- unique(c(outliers_oil, outliers_gas))
+
+outliers_df <- data.frame(
+  Date = dates[outliers],
+  r_oil = r_oil[outliers],
+  r_gas = r_gas[outliers])
+outliers_df[order(outliers_df$Date), ]
+
+```
+
+Os outliers foram definidos arbitrariamente como valores que estão a mais de 3 desvios padrão da média. Ao analisar as datas dos outliers identificados, observa-se que elas coincidem com períodos de instabilidade econômica. Por exemplo, a crise financeira de 2008, e suas consequências no ano de 2009, é coincidente com cinco dos outliers. Outras datas, como 2001 e 2003, também correspondem a momentos críticos na economia global, como a bolha da internet e a invasão do Iraque, que impactaram os mercados de petróleo e gás.
+
+f) Tem havido uma série de estudos questionando se os preços da gasolina respondem mais rapidamente quando os preços do petróleo estão subindo do que quando os preços do petróleo estão caindo, chamamos esse efeito de assimetria dos preços. Vamos tentar explorar essa questão aqui com regressão retardada simples. Ignorando alguns problemas óbvios, como outliers e erros autocorrelacionados, por isso não será uma análise definitiva. Considre $G_t$ e $O_t$ denotar as taxas de crescimento dos preços do gás e de petróleo.
+
+
+
+g) Ajuste o seguinte modelo de regressão e comente os resultados: $G_t= \alpha_1 + \alpha_2 I_t + \beta_1O_t + \beta_2O_{t−1}+W_t$,
+onde $I_t=1$ se $O_t≥0$ e 0 (zero) caso contrário, ou seja, $I_t$ é o indicador de ausência de crescimento ou crescimento positivo no preço do petróleo.
+
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+poil = diff(log(oil))
+pgas = diff(log(gas))
+indi = ifelse(poil < 0, 0, 1)
+mess = ts.intersect(pgas, poil, poilL = lag(poil,-1), indi)
+summary(fit <- lm(pgas ~ poil + poilL + indi, data=mess))
+```
+
+
+
+ii. Qual é o modelo ajustado quando há um crescimento negativo no preço do petróleo no tempo $t$? Qual é o modelo ajustado quando não há crescimento positivo do preço do petróleo? Esses resultados suportam a hipótese de assimetria?
+
+
+O modelo é dado por $G_t= \alpha_1 + \alpha_2 + \beta_1O_t + \beta_2O_{t−1}+W_t$. Quando há crescimento positivo, e substituindo os valores encontrados, temos $G_t= -0.0064 + 0.6831O_t + 0.1119O_{t−1}+W_t$.
+
+Já quando há crescimento negativo, o modelo fica $G_t= -0.0064 + 0.0124 + 0.6831O_t + 0.1119O_{t−1}+W_t = 0.006 + 0.6831O_t + 0.1119O_{t−1}+W_t$.
+Considerando essa diferença de sinal dos $\beta$'s estimados (-0.0064 vs 0.006), esses resultados indicam que o impacto dos preços do petróleo sobre os preços da gasolina é assimétrico. Em situações de crescimento positivo do petróleo, a resposta da gasolina é expressivamente maior comparado ao que ocorre quando há crescimento negativo.
+
+
+iii. Analise os resíduos do ajuste e comente.
+
+```{r, warning=FALSE, echo=TRUE, results=TRUE}
+ajustados <- data.frame(x = time(r_oil)[-1], y = fitted(fit))
+residuos <- residuals(fit)
+plot(fitted(fit), residuos, 
+     xlab = "Valores Ajustados", 
+     ylab = "Resíduos", 
+     main = "Resíduos vs Valores Ajustados")
+abline(h = 0, col = "red", lty = 2)
+```
+
+Os resíduos do ajuste se comportam de maneira adequada em torno de zero, sem padrões constantes de fuga da média constatados. Portanto, o modelo se sustenta como explicativo às séries temporais e também ao seu comportamento da série de preços do petróleo conduzir a série de preços da gasolina, inclusive de forma assimétrica, sendo mais alongada temporalmente quando o crescimento de preços é positivo. 
