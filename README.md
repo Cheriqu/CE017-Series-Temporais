@@ -7,8 +7,9 @@ Este repositório contém o primeiro trabalho prático da disciplina de Séries 
 O trabalho aborda três problemas principais da área:
 1. **Simulação de Ruído Branco:** Comparação de ACF teórica vs. amostral e o impacto do tamanho da amostra ($n$) na precisão estatística.
 2. **Modelagem Estrutural (Johnson & Johnson):** Ajuste de modelo com tendência linear e sazonalidade trimestral via variáveis indicadoras, incluindo análise de resíduos e cálculo de crescimento anual.
-3. **Análise de Commodities (Petróleo e Gás):** - Teste de Estacionariedade.
-   - Transformação de Log-Retornos ($Y_t = \nabla \log(X_t)$).
+3. **Análise de Commodities (Petróleo e Gás):**
+   - Teste de Estacionariedade.
+   - Transformação de Log-Retornos $ Y_t = \nabla \log(X_t) $.
    - Análise de Correlação Cruzada (CCF) e Regressão Retardada.
    - Investigação de Assimetria de Preços (efeito dos preços do petróleo na gasolina).
 
